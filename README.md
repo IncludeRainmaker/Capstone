@@ -1,3 +1,5 @@
 This is the CNC woodworking Project for ONU Senior Design.
 
-Matt Bishop
+###Authors
+Matt Bishop <br />
+Austin M. Rademacher

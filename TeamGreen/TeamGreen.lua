@@ -2,51 +2,58 @@
 
 -- by D. Retterer
 -- Creates contours that represent pins and sockets for finger joint
--- with left and right pins and sockets a specified (equal) width 
+-- with left and right pins and sockets a specified (equal) width
 -- and full sized pins and sockets sized based on the requested
--- number of them.  
+-- number of them.
 
--- Store in C:\Users\Public\Documents\Vectric Files\Gadgets\Aspire V8.0 to make it 
+-- Store in C:\Users\Public\Documents\Vectric Files\Gadgets\Aspire V8.0 to make it
 -- a gadget visible in Aspire V8.0
 
 -- Origin is at the lower left corner of the workpiece
 
 -- Based on an algorithm by Team Blue  (Merkel, et. al.)
-require("mobdebug").start() -- starts the debugger
+-- require("mobdebug").start() -- starts the debugger
 
 function main(path)
-  
-    -- Ensure that a job is loaded
-    local job = VectricJob()
 
-    if not job.Exists then
-       DisplayMessageBox("No job open.")
-       return false
-    end
-    
+  -- Ensure that a job is loaded
+  local job = VectricJob()
+
+  if not job.Exists then
+     DisplayMessageBox("No job open.")
+     return false
+  end
+
   dialog = HTML_Dialog(false, "file:" .. path .. "\\TeamGreen.htm", 450, 300, "Finger_Joints")
   dialog:AddIntegerField("NumberOfInteriorPins", 7)
   dialog:AddDoubleField("EndPinWidth", 0.625)
   dialog:AddDoubleField("EndmillDiameter", 0.25)
   dialog:AddDoubleField("Clearance", 0.005)
   dialog:ShowDialog()
-  
+
   return true
 end
 
 function OnLuaButton_CreateFingerJoints()
-
+  -- Sets the number of interior pins.
   local numInteriorPins = dialog:GetIntegerField("NumberOfInteriorPins")
+  -- Sets the end pin width.
   local endPinWidth = dialog:GetDoubleField("EndPinWidth")
+  -- Set the diameter of the bit. The Thing that does the actual
   local BitDiameter = dialog:GetDoubleField("EndmillDiameter")
+  -- Sets the clearence for the pin
   local Clearance = dialog:GetDoubleField("Clearance")
 
+  -- API Call to Vetric?
   local material_block = MaterialBlock()
+
+  -- Height of the block.
   local Height = material_block.Height
+  -- Width of the block.
   local Width = material_block.Width
-  job = VectricJob()
-  layer = job.LayerManager:GetActiveLayer()
-  
+  job = VectricJob() -- Creates a Vectric Job
+  layer = job.LayerManager:GetActiveLayer() -- Gets the activated drawing
+
   pgen = PinGenerator:new()
   board = CuttingRectangle:new()
   board:setCuttingRectangle(0,0,Width, Height);
@@ -70,7 +77,7 @@ function ContourRectangle(start_point, width, height)
   -- start_point: a Point2D object
   -- width: double
   -- height: double
-  
+
   rectangle = Contour(0.0)
   rectangle:AppendPoint(start_point)
   rectangle:LineTo(Point2D(start_point.x + width, start_point.y))
@@ -83,7 +90,7 @@ end
 
 function CreateCutAreas(arrCutAreas)
   -- creates a rectangle for each CutArea in arrCutAreas
- 
+
   local material_block = MaterialBlock()
   local Height = material_block.Height
   local Width = material_block.Width
@@ -104,7 +111,7 @@ CuttingRectangle = {
   y,
   Width,
   Height,
-  
+
   setCuttingRectangle = function (self, _x, _y, _width, _height)
     self.x = _x
 	  self.y = _y
@@ -119,7 +126,7 @@ function CuttingRectangle:new(o)
   self.__index = self
   return o
 end
- 
+
 PinGenerator = {
   GeneratePinBoard = function(self, board, endPinWidth, numOfInnerPins, clearance, endmill)
     --local numOfInnerPins = 2*numOfInnerPins + 1 -- DAR
@@ -130,7 +137,7 @@ PinGenerator = {
    end
    return output
   end,
-  
+
   GenerateSocketBoard = function(self, board, endPinWidth, numOfInnerPins, clearance, endmill)
     --local numOfInnerPins = 2*numOfInnerPins + 1 -- DAR
     local output = {}
@@ -155,27 +162,25 @@ PinGenerator = {
 	    local x = endPinWidth + clearance -i*clearance + (innerSocketWidth * (i-1));
       cr = CuttingRectangle:new{}
       cr:setCuttingRectangle(x, y, innerSocketWidth, height)
-	    table.insert(output, cr)
+	  table.insert(output, cr)
 	  end
 	  cr = CuttingRectangle:new{}
-	  cr:setCuttingRectangle(self:calculateRightEndSocketX(endPinWidth, board.Width, clearance), 
-	                         y,
-	                         endSocketWidth, 
-						               height)
+	  cr:setCuttingRectangle(self:calculateRightEndSocketX(endPinWidth, board.Width, clearance),
+	                         y, endSocketWidth, height)
 	  table.insert(output, cr)
 	  return output
   end,
-  
+
   -- get base pin length
   GetSocketWidth = function(self, numPins, boardWidth, clearance, endPinWidth)
 	  local innerWidth = self:GetInnerWidth(boardWidth, clearance, endPinWidth)
     return (innerWidth / numPins + clearance)
   end,
-  
+
   GetInnerWidth = function(self, boardWidth, clearance, endPinWidth)
     return boardWidth - endPinWidth * 2 - clearance
   end,
-	  
+
   -- get pin number
   GetPinNum = function(self, goalNum, isSymmetric)
     if (isSymmetric) then
@@ -184,21 +189,21 @@ PinGenerator = {
       n = 2
     end
 	  while (goalNum - n >= 1) do
-	    n = n+2 
+	    n = n+2
 	  end
-	
+
 	  return n
   end,
-  
+
   -- overload in C# but never used.
   -- GetInnerWidth = function(self, boardWidth, endPinWidth)
   --   return boardWidth - (2*endPinWidth)
   -- end,
-  
+
   GetGoalNumber = function(self, goalWidth, innerWidth)
     return innerWidth / goalWidth
   end,
-  
+
   -- get end pins
   calculateEndSocketWidth = function (self, endPinWidth, endMill, clearance)
     _width = endPinWidth + (endMill * 0.25) + clearance
@@ -208,25 +213,26 @@ PinGenerator = {
   calculateHeight = function(self, boardHeight, endMill)
 	_height = boardHeight + endMill * 1.1
 	return _height
-  end,  
-  
+  end,
+
   calculateLeftEndSocketX = function (self, endMill)
     _X1 = -endMill * 0.25
 	return _X1
   end,
-  
+
   calculateRightEndSocketX = function(self, endPinWidth, boardWidth, clearance)
     _X2 = boardWidth - endPinWidth - clearance
     return _X2
   end,
-  
+
   calculateY = function(self, endMill)
     _Y = endMill*0.55
 	return _Y
   end
 }
 
-function PinGenerator:new(o)  
+function PinGenerator:new(o)
+  -- Pin Generator object
   o = o or {}
   setmetatable(o,self)
   self.__index = self
@@ -239,7 +245,7 @@ Breakpoints = {
   endPinWidth,
   numInteriorAreas,
   breakpoints = {},
-  
+
   setParams = function (self, BoardWidth, Clearance, EndPinWidth, NumInteriorPins)
   breakpoints = {}
   halfClearance = Clearance/2
@@ -249,7 +255,7 @@ Breakpoints = {
   interiorBoardWidth = boardWidth - ((2 * endPinWidth) + Clearance)
   interPinWidth = interiorBoardWidth / numInteriorAreas
   end,
-  
+
   generateBreakpoints = function (self)
     breakpoints = {}
     numBreakPoints = math.floor(numInteriorAreas / 2) + 1
@@ -260,14 +266,14 @@ Breakpoints = {
       offset = offset + interPinWidth
       table.insert(breakpoints, offset)
     end
-    
+
     table.insert(breakpoints, boardWidth)
     return breakpoints
   end,
 }
 
 function Breakpoints:new(o,BoardWidth, Clearance, EndPinWidth, NumInteriorPins)
-  
+
   o = o or {}
   setmetatable(o,self)
   self.__index = self
@@ -283,14 +289,14 @@ Board = {
   _emDiameter,
   _Clearance,
   cutAreas = {},
-  
+
   setBoardParams = function(self, H, W, D, C)
       _Height = H
       _Width = W
       _emDiameter = D
       _Clearance = C
     end,
-    
+
   generateSocketBoardBreaks = function (self)
     Breakpoints:generateBreakpoints()
     numItems = #breakpoints;
@@ -306,7 +312,7 @@ Board = {
     newBreakPoints[numItems] = newBreakPoints[numItems] + _Clearance
     return newBreakPoints
  end,
- 
+
   generateSocketBoardCutAreas = function (self)
       cutAreas = {}
       yStart = 0 + (0.5 * _emDiameter)
@@ -323,7 +329,7 @@ Board = {
       end
       return cutAreas
     end,
-    
+
   generatePinBoardBreaks = function (self)
     Breakpoints:generateBreakpoints()
     numItems = #breakpoints;
@@ -337,7 +343,7 @@ Board = {
     end
     return newBreakPoints
  end,
- 
+
   generatePinBoardCutAreas = function (self)
       cutAreas = {}
       yStart = 0 + (0.5 * _emDiameter)
@@ -378,7 +384,7 @@ function Tool:new(o)
   end
 
 
-CutArea = { 
+CutArea = {
   rect = {},
   setRectangle = function(self, ulcx, ulcy, width, height)
     rect = {ulcx, ulcy, width, height}
@@ -391,5 +397,4 @@ function CutArea:new(o)
   setmetatable(o,self)
   self.__index = self
   return o
-  end
-
+end
